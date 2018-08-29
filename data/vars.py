@@ -2,13 +2,13 @@
 import json
 import os
 
-abspath = os.path.abspath(__file__)
-dname = os.path.dirname(abspath)
-os.chdir(dname)
-
 
 class Vars:
     def __init__(self):
+        abspath = os.path.abspath(__file__)
+        dname = os.path.dirname(abspath)
+        os.chdir(dname)
+
         file = open('../../vars.json', 'r')
         v = json.load(file)
 

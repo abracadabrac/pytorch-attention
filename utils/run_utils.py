@@ -3,7 +3,7 @@ import numpy as np
 
 
 def adapt_data_format(x, y):
-    x_adapt = torch.Tensor(x, device=torch.device("cuda" if torch.cuda.is_available() else "cpu")).permute(0, 3, 1, 2)
+    x_adapt = torch.Tensor(x).permute(0, 3, 1, 2)
     y_adapt = np.argmax(y, axis=2)
     y_adapt = torch.LongTensor(y_adapt, device=torch.device("cuda" if torch.cuda.is_available() else "cpu"))
 

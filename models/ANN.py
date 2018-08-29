@@ -32,10 +32,10 @@ class Net0(nn.Module):
         self.conv4 = nn.Conv2d(16, 32, 3, padding=1)
         self.maxp4 = nn.MaxPool2d(self.strides[3])
         self.apply(init_conv_weights)
-        self.hidden_0 = (torch.randn(1, 128, requires_grad=True),
-                         torch.randn(1, 128, requires_grad=True))
-        self.lstm0 = nn.LSTM(224, 128, bidirectional=False)
-        self.attention = AttentionCell(128, 128, 29, 25)
+        self.hidden_0 = (torch.randn(1, 224, requires_grad=True),
+                         torch.randn(1, 224, requires_grad=True))
+        self.lstm0 = nn.LSTM(224, 224, bidirectional=False)
+        self.attention = AttentionCell(224, 128, 29, 25)
 
     def forward(self, x):
         batch_size = x.shape[0]

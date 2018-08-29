@@ -33,7 +33,6 @@ def depad_character(char_list):
     this function permits to remove the '_' at the end of the labels.
     :param char_list:
     :return: the character without the '_' at the end
-
     ex: 'London__________' -> 'London'
     """
     for index_char, char in enumerate(char_list):
@@ -46,6 +45,7 @@ def depad_character(char_list):
 
 
 class Data:
+
     def __init__(self, images_dir_path, labels_txt_path, pad_input_char=True):
 
         self.lexic = []
@@ -100,30 +100,31 @@ class Data:
 
         return labels_dict
 
-
     def generator(self, batch_size):
-        """
-        user function for getting images and its related labels
-        :param batch_size: number of samples
-        ex : [ 1, 2, 1] instead of [[0 1 0], [0 0 1], [0 1 0]]
-        :return: images in format (batch_size, self.im_length, self.im_height, 1)
-                 labels in format (batch_size, self.lb_length, self.vocab_size)
-        """
-        instance_id = range(len(self.images_path))
+        images_path = self.images_path
         while True:
             try:
-                batch_ids = random.sample(instance_id, batch_size)  # list of random ids
+                if batch_size <= len(images_path):
+                    batch_ids = random.sample(range(len(images_path)), batch_size)  # list of random ids
+                else:
+                    batch_ids = random.sample(range(len(images_path)), len(images_path))
+                    batch_size = len(images_path)
+
+                images_path_batch = [images_path[id_] for id_ in batch_ids]  # list of random image paths
+                images_path = [image_path for id_, image_path in enumerate(images_path) if id_ not in batch_ids]
+                # we remove the images in the current list not to use the same image twice
 
                 variable_size_images_batch_list = [mpimg.imread(  # images to be padded
-                    self.image_dir_path + self.images_path[id_])
-                    for id_ in batch_ids]
+                    self.image_dir_path + image_path_batch)
+                    for image_path_batch in images_path_batch]
+
                 images_batch_list = pad_images(variable_size_images_batch_list, self.im_height, self.im_length)
 
                 images_batch = np.array(images_batch_list).reshape(batch_size, self.im_length, self.im_height, 1)
 
                 words_batch_list = [self.labels_dict[image_path]
                                     # list of variable-size non-encoded words
-                                    for image_path in self.images_path[batch_ids]]
+                                    for image_path in images_path_batch]
 
                 if self.pad_input_char:
                     # the sequence of character will be padded with '_' which correspond to the last one-hot encoding
@@ -131,13 +132,14 @@ class Data:
 
                 labels_batch = self.encode_label(words_batch_list)  # encode and normalize size
 
-                assert (images_batch.shape == (batch_size, self.im_length, self.im_height, 1)) & \
-                       (labels_batch.shape == (batch_size, self.lb_length, self.vocab_size))
+                if batch_size > 0:
+                    assert (images_batch.shape == (batch_size, self.im_length, self.im_height, 1)) & \
+                           (labels_batch.shape == (batch_size, self.lb_length, self.vocab_size))
 
                 yield (images_batch, labels_batch)
             except Exception as e:
-                # print('catch exception : ')
-                # print(e)
+                print("catch exception")
+                print(e)
                 self.generator(batch_size)
 
     def encode_label(self, labels):
@@ -187,30 +189,10 @@ class Data:
 
         return decoded_labels
 
-    def pred2OneHot(self, probability_vector):
-        """
-        Neural nets predict vectors of probability for each element of the sequence over the vocabulary.
-        this function permits to get the most likely label according to the net's prediction
-
-        :param probability_vector:
-        :return: most likely encoded chars
-
-        ex : [ [.2, .3, .5], [.1, .7, .2] ] -> [ [0, 0, 1], [0, 1, 0] ]
-        """
-
-        M = np.array([list(np.argmax(l, axis=1)) for l in probability_vector])
-        oh = np.zeros([probability_vector.shape[0], probability_vector.shape[1], self.vocab_size])
-        for batch_index, batch_list in enumerate(list(M)):
-            for time_step, index in enumerate(list(batch_list)):
-                oh[batch_index, time_step, index] = 1
-
-        return oh
-
 
 def main1():
     train = Data(V.images_train_dir, V.labels_train_txt)
     test = Data(V.images_test_dir, V.labels_test_txt)
-
 
 
 if __name__ == "__main__":

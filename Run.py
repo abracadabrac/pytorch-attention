@@ -26,12 +26,16 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
     learning_data = []
     loss_train_cumulate = []
 
-    for epoch in range(nb_epoch):
+    for epoch in range(1, nb_epoch):
         gen_train = data_train.generator(batch_size)
         print(' ')
-        print('epoch : %d' % (epoch + 1))
-        for batch in range(nb_batch):
-            inputs, labels = adapt_data_format(*gen_train.__next__())
+        print('epoch : %d' % epoch)
+
+        inputs, labels = gen_train.__next__()
+        batch = 1
+        while inputs.shape[0] != 0:
+            inputs, labels = adapt_data_format(inputs, labels)      # the Data class was first developed for a keras
+            #  model and needs adjustment to be used with the torch one
             optimizer.zero_grad()
 
             outputs = net(inputs)
@@ -43,9 +47,9 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
 
             if batch % 100 == 99:
                 print(' ')
-                print(' epoch  %d/%d,    batch  %d/%d' % (epoch + 1, nb_epoch, batch + 1, nb_batch))
+                print(' epoch  %d/%d,    batch  %d/%d' % (epoch, nb_epoch, batch, nb_batch))
 
-                gen_valid = data_valid.generator(10)
+                gen_valid = data_valid.generator(300)
                 inputs, labels = adapt_data_format(*gen_valid.__next__())
 
                 outputs = net(inputs)
@@ -53,12 +57,14 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
                 loss_train = np.mean(loss_train_cumulate)
                 loss_train_cumulate = []
                 loss_valid, label_error, word_error = errors(outputs, labels, data_valid)
-                learning_data.append({'epoch': epoch + 1,
-                                      'batch': batch + 1,
+                learning_data.append({'epoch': epoch,
+                                      'batch': batch,
                                       'loss_valid': loss_valid,
                                       'loss_train': loss_train,
                                       'label_error': label_error,
                                       'word_error': word_error})
+                learing_summary = pd.DataFrame(learning_data)
+                learing_summary.to_csv(path_or_buf='%s/pytorch/%s/learning_summary' % (V.experiments_folder, name))
 
                 print('     loss_valid    %f' % loss_valid)
                 print('     loss_train    %f' % loss_train)
@@ -66,12 +72,12 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
                 print('     word_error    %f' % word_error)
 
                 if loss_valid < best_loss_valid:
-                    print('     new best loss valid    %f' % loss_valid)
-                    torch.save(net, '%s/pytorch/%s/net-e%d-lv%f' % (V.experiments_folder, name, epoch + 1, loss_valid))
+                    print('     *  new best loss valid    %f' % loss_valid)
+                    torch.save(net, '%s/pytorch/%s/Weights/net-e%d-lv%f' % (V.experiments_folder, name, epoch, loss_valid))
                     best_loss_valid = loss_valid
 
-    learing_summary = pd.DataFrame(learning_data)
-    learing_summary.to_csv(path_or_buf='%s/pytorch/%s/learning_summary' % (V.experiments_folder, name))
+            inputs, labels = gen_train.__next__()
+            batch += 1
 
     return net
 
@@ -80,10 +86,11 @@ if __name__ == "__main__":
     now = datetime.datetime.now().replace(microsecond=0)
     name = datetime.date.today().isoformat() + '-' + now.strftime("%H-%M-%S")
     os.makedirs("/%s/pytorch/%s/Test" % (V.experiments_folder, name))
-    nb_epoch = 10
-    nb_batch = 2000
-    batch_size = 5
-    lr = 1e-3
+    os.makedirs("/%s/pytorch/%s/Weights" % (V.experiments_folder, name))
+    nb_epoch = 22
+    batch_size = 8
+    nb_batch = int(len(os.listdir(V.images_train_dir)) / batch_size)
+    lr = 1e-4
 
     net = Net0()
 
