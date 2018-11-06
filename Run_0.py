@@ -5,17 +5,17 @@ import datetime
 import os
 import pandas as pd
 
-from models.ANN import Net0
+from models.ANN import EncoderDecoder
 from data.reader import Data
 from data.vars import Vars
-from Test_model import test_model, errors
+from Test_model import test_model, errors, save_in_files
 from utils.run_utils import adapt_data_format, save_loss
 
 
 V = Vars()
 
 
-def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
+def train_model_1(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
     print(' ')
     print("_____training_____")
 
@@ -64,7 +64,11 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
                                       'label_error': label_error,
                                       'word_error': word_error})
                 learing_summary = pd.DataFrame(learning_data)
-                learing_summary.to_csv(path_or_buf='%s/pytorch/%s/learning_summary' % (V.experiments_folder, name))
+                learing_summary.to_csv(path_or_buf='%s/pytorch/%s/learning_summary.csv' % (V.experiments_folder, name))
+
+                path = "%s/pytorch/%s/Training/e%d-b%d/" % (V.experiments_folder, name, epoch, batch)
+                os.makedirs(path)
+                save_in_files(path, loss_valid, label_error, word_error, outputs, labels, data_valid)
 
                 print('     loss_valid    %f' % loss_valid)
                 print('     loss_train    %f' % loss_train)
@@ -73,7 +77,7 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
 
                 if loss_valid < best_loss_valid:
                     print('     *  new best loss valid    %f' % loss_valid)
-                    torch.save(net, '%s/pytorch/%s/Weights/net-e%d-lv%f' % (V.experiments_folder, name, epoch, loss_valid))
+                    torch.save(net, '%s/pytorch/%s/Weights/net-e%d-b%d' % (V.experiments_folder, name, epoch, batch))
                     best_loss_valid = loss_valid
 
             inputs, labels = gen_train.__next__()
@@ -85,16 +89,16 @@ def train_model(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
 if __name__ == "__main__":
     now = datetime.datetime.now().replace(microsecond=0)
     name = datetime.date.today().isoformat() + '-' + now.strftime("%H-%M-%S")
+
     os.makedirs("/%s/pytorch/%s/Test" % (V.experiments_folder, name))
     os.makedirs("/%s/pytorch/%s/Weights" % (V.experiments_folder, name))
-    nb_epoch = 22
+    nb_epoch = 10
     batch_size = 8
     nb_batch = int(len(os.listdir(V.images_train_dir)) / batch_size)
-    lr = 1e-4
+    lr = 1e-3
 
-    net = Net0()
-
-    net = train_model(net, name, nb_epoch=nb_epoch, nb_batch=nb_batch, batch_size=batch_size, lr=lr)
+    net = EncoderDecoder()
+    net = train_model_1(net, name, nb_epoch=nb_epoch, nb_batch=nb_batch, batch_size=batch_size, lr=lr)
 
     test_model(net, name)
 

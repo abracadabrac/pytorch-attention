@@ -5,10 +5,21 @@ from torch import nn
 What follows in an implementation of an attention cell.
 It reproduces the algorithm presented by Dzmitry Bahdanau, KyungHyun Cho and Yoshua Bengio in NEURAL MACHINE TRANSLATION
 BY JOINTLY LEARNING TO ALIGN AND TRANSLATE.
+
+
+
+      '||                    '||`              
+       ||                     ||               
+.|'',  ||''|,  '''|.  '||''|  ||  .|''|, ('''' 
+||     ||  || .|''||   ||     ||  ||..||  `'') 
+`|..' .||  || `|..||. .||.   .||. `|...  `...' 
+                                               
+
+
 """
 
 
-class AttentionCell(nn.Module):
+class AttentionDecoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, output_seq_length):
         super(AttentionCell, self).__init__()
 
