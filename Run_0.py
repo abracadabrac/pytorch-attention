@@ -5,12 +5,11 @@ import datetime
 import os
 import pandas as pd
 
-from models.ANN import EncoderDecoder
+from models_0.EncoderDecoder import EncoderDecoder
 from data.reader import Data
 from data.vars import Vars
-from Test_model import test_model, errors, save_in_files
-from utils.run_utils import adapt_data_format, save_loss
-
+from Test_model_0 import test_model, errors, save_in_files
+from utils.run_utils import adapt_data_format
 
 V = Vars()
 
@@ -34,7 +33,7 @@ def train_model_1(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
         inputs, labels = gen_train.__next__()
         batch = 1
         while inputs.shape[0] != 0:
-            inputs, labels = adapt_data_format(inputs, labels)      # the Data class was first developed for a keras
+            inputs, _, labels = adapt_data_format(inputs, labels)      # the Data class was first developed for a keras
             #  model and needs adjustment to be used with the torch one
             optimizer.zero_grad()
 
@@ -50,7 +49,7 @@ def train_model_1(net, name, nb_epoch=1, nb_batch=1, batch_size=1, lr=1e-4):
                 print(' epoch  %d/%d,    batch  %d/%d' % (epoch, nb_epoch, batch, nb_batch))
 
                 gen_valid = data_valid.generator(300)
-                inputs, labels = adapt_data_format(*gen_valid.__next__())
+                inputs, _, labels = adapt_data_format(*gen_valid.__next__())
 
                 outputs = net(inputs)
 
@@ -101,5 +100,3 @@ if __name__ == "__main__":
     net = train_model_1(net, name, nb_epoch=nb_epoch, nb_batch=nb_batch, batch_size=batch_size, lr=lr)
 
     test_model(net, name)
-
-

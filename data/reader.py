@@ -3,6 +3,7 @@ import random
 import os
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
+from utils.run_utils import adapt_data_format
 
 from data.vars import Vars
 
@@ -45,13 +46,12 @@ def depad_character(char_list):
 
 
 class Data:
-
-    def __init__(self, images_dir_path, labels_txt_path, pad_input_char=True):
+    def __init__(self, images_dir_path, labels_txt_path, pad_input_char=True, normalize_pixels=True):
 
         self.lexic = []
         self.im_height = 28
         self.im_length = 384
-        self.lb_length = 25  # normalized length of the encoded elements of the labels
+        self.lb_length = 25  # normalized sequence length of the encoded elements of the target
         self.pad_input_char = pad_input_char
         self.image_dir_path = images_dir_path
         self.labels_txt_path = labels_txt_path
@@ -64,6 +64,9 @@ class Data:
 
         self.vocab_size = len(self.encoding_dict)  # total numbers of different characters within the vocabulary, (28)
 
+        self.normalize_pixel = normalize_pixels
+        self.pixel_mean = 49e-3         # cf utils/meanAndVar
+        self.pixel_var = 20e-2
 
     def get_labels_dict(self, labels_txt_path):
         """
@@ -102,6 +105,13 @@ class Data:
 
     def generator(self, batch_size):
         images_path = self.images_path
+
+        if self.normalize_pixel:
+            m = self.pixel_mean
+            v = self.pixel_var
+        else:
+            m = 0
+            v = 1
         while True:
             try:
                 if batch_size <= len(images_path):
@@ -114,9 +124,9 @@ class Data:
                 images_path = [image_path for id_, image_path in enumerate(images_path) if id_ not in batch_ids]
                 # we remove the images in the current list not to use the same image twice
 
-                variable_size_images_batch_list = [mpimg.imread(  # images to be padded
-                    self.image_dir_path + image_path_batch)
-                    for image_path_batch in images_path_batch]
+                variable_size_images_batch_list = [(mpimg.imread(  # images to be padded
+                    self.image_dir_path + image_path_batch) - m) / v
+                                                   for image_path_batch in images_path_batch]
 
                 images_batch_list = pad_images(variable_size_images_batch_list, self.im_height, self.im_length)
 
@@ -141,6 +151,7 @@ class Data:
                 print("catch exception")
                 print(e)
                 self.generator(batch_size)
+
 
     def encode_label(self, labels):
         """
@@ -167,7 +178,7 @@ class Data:
         """
         :param labels: np.array of list representing a sequence of encoded labels.
         :param depad: removes '_'
-        :param onehot_input: True in the input is encoded as a onehot vector, false if it is a listof index
+        :param onehot_input: True in the input is encoded as a onehot vector, false if it is a list of indexes
         :return: the corresponding list of strings padded with "_" for null elements
         """
         decoded_labels = []
@@ -193,6 +204,13 @@ class Data:
 def main1():
     train = Data(V.images_train_dir, V.labels_train_txt)
     test = Data(V.images_test_dir, V.labels_test_txt)
+
+    gen = train.generator(20)
+
+    images, labels = gen.__next__()
+    images, labels, labels_argmax = adapt_data_format(images, labels)
+
+    print(images.shape)
 
 
 if __name__ == "__main__":

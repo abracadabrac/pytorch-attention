@@ -21,7 +21,7 @@ BY JOINTLY LEARNING TO ALIGN AND TRANSLATE.
 
 class AttentionDecoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, output_seq_length):
-        super(AttentionCell, self).__init__()
+        super(AttentionDecoder, self).__init__()
 
         self.max_output_seq_length = output_seq_length
 
@@ -35,7 +35,7 @@ class AttentionDecoder(nn.Module):
 
         self.linear_h_a = nn.Linear(input_dim, self.hidden_dim, bias=False)
         self.linear_s_a = nn.Linear(self.hidden_dim, self.hidden_dim, bias=True)
-        self.linear_a = nn.Linear(self.hidden_dim, 1, bias=False)
+        self.linear_a = nn.Linear(2 * self.hidden_dim, 1, bias=False)
         self.linear_init_s = nn.Linear(self.input_dim, self.hidden_dim, bias=True)
 
         self.gru0 = nn.GRUCell(self.output_dim + self.input_dim, self.hidden_dim)
@@ -58,7 +58,7 @@ class AttentionDecoder(nn.Module):
 
         return outputs
 
-    def step(self, prev_hidden, prev_output):
+    def step(self, sim, yim):
         """
         :param prev_hidden: hidden vector of mast step
         :param prev_output: output vector of last step
@@ -71,28 +71,23 @@ class AttentionDecoder(nn.Module):
         a_i: attention map                                  (input_seq_length)
         :return:
         """
-        s_im = prev_hidden
-        y_im = prev_output
 
-        s_im_dup = s_im.unsqueeze(1).repeat(1, self.input_steps, 1)
+        sim_dup = sim.unsqueeze(1).repeat(1, self.input_steps, 1)
         # duplicate s_im along input sequence dimension, s_im being dependant upon decoding time step
-        a_i = self.wh + self.linear_s_a(s_im_dup)
-        a_i = self.tanh(a_i)
-        a_i = self.linear_a(a_i)[:, :, 0]
-        a_i = self.softmax(a_i)
+        ai = self.tanh(torch.cat((self.wh, self.linear_s_a(sim_dup)), 2))
+        ai = self.softmax(self.linear_a(ai)[:, :, 0])
 
-        c_i = a_i.unsqueeze(2).repeat(1, 1, self.input_dim) * self.h
-        c_i = torch.sum(c_i, 1)
+        ci = ai.unsqueeze(1).bmm(self.h).squeeze()
 
-        input_gru = torch.cat((c_i, y_im), 1)
-        hidden_gru = s_im
-        s_i = self.gru0(input_gru, hidden_gru)
+        input_gru = torch.cat((ci, yim), 1)
+        hidden_gru = sim
+        si = self.gru0(input_gru, hidden_gru)
 
-        input_rnn = torch.cat((c_i, s_i), 1)
-        hidden_rnn = y_im
-        y_i = self.softmax(self.rnn0(input_rnn, hidden_rnn))
+        input_rnn = torch.cat((ci, si), 1)
+        hidden_rnn = yim
+        yi = self.softmax(self.rnn0(input_rnn, hidden_rnn))
 
-        return s_i, y_i
+        return si, yi
 
     def initHidden(self, x):
         s_0 = self.tanh(self.linear_init_s(x[:, 0, :]))
@@ -109,7 +104,7 @@ if __name__ == "__main__":
     hidden_attention_dim, output_dim, output_seq_length = 5, 6, 7
     inputs = torch.rand(batch, step, input_dim)
 
-    attCell = AttentionCell(input_dim, hidden_attention_dim, output_dim, output_seq_length)
+    attCell = AttentionDecoder(input_dim, hidden_attention_dim, output_dim, output_seq_length)
     output = attCell(inputs)
 
     print(output)

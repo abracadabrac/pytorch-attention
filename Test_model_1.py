@@ -23,13 +23,13 @@ def decode(outputs, labels, data_test):
 def errors(outputs, labels, data_test):
     outputs_decoded, labels_decoded = decode(outputs, labels, data_test)
 
-    loss = nn.functional.cross_entropy(outputs, labels).item()
-    label_error = [CER(l, p) / len(l) for l, p in zip(labels_decoded, outputs_decoded)]
+    label_error = [CER(l, p) / np.max([len(l), len(p)])
+                   for l, p in zip(labels_decoded, outputs_decoded)]
     label_error_mean = np.mean(label_error)
     word_error = [0 if cer == 0 else 1 for cer in label_error]
     word_error_mean = np.mean(word_error)
 
-    return loss, label_error_mean, word_error_mean
+    return label_error_mean, word_error_mean
 
 
 def save_in_files(path, loss, label_error, word_error, outputs, labels, data_test):
@@ -51,7 +51,7 @@ def save_in_files(path, loss, label_error, word_error, outputs, labels, data_tes
             writer.writerow({'label': l, 'prediction': p, 'error': CER(l, p)})
 
 
-def test_model(net, name):
+def test_model(enc, dec, name):
     print(" ")
     print("_____testing %s______" % name)
 
